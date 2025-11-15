@@ -370,6 +370,17 @@ function App() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // ✅ 모바일에서 랭킹판 접기/펼치기
+  const [rankCollapsed, setRankCollapsed] = useState(false);
+  useEffect(() => {
+    // 모바일이면 기본 접힘, PC면 항상 펼침
+    if (isMobile) {
+      setRankCollapsed(true);
+    } else {
+      setRankCollapsed(false);
+    }
+  }, [isMobile]);
+
   // 누적 좋아요
   const [likes, setLikes] = useState(() => {
     try {
@@ -1050,7 +1061,7 @@ function App() {
         style={{ position: "absolute", inset: 0 }}
       />
 
-      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 (모바일에서 더 작게, 왼쪽 고정) */}
+      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 (모바일에서 접기/펼치기 가능) */}
       <div
         style={{
           position: "absolute",
@@ -1072,145 +1083,167 @@ function App() {
             fontWeight: 700,
             marginBottom: 6,
             fontSize: 14,
-            textAlign: "left",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          누적 좋아요 TOP 5
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-            gap: 12,
-          }}
-        >
-          {/* 시/도 Top5 */}
-          <div>
-            <div
+          <span>누적 좋아요 TOP 5</span>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setRankCollapsed((v) => !v)}
               style={{
-                fontWeight: 600,
-                marginBottom: 6,
-                fontSize: 14,
+                border: "none",
+                background: "transparent",
+                fontSize: 12,
+                padding: "2px 6px",
+                borderRadius: 6,
+                cursor: "pointer",
+                color: "#2563eb",
               }}
             >
-              시/도
-            </div>
-            <ol style={{ margin: 0, paddingLeft: 18 }}>
-              {topProv.length ? (
-                topProv.map(([key, cnt]) => (
-                  <li
-                    key={key}
-                    style={{
-                      marginBottom: 6,
-                      fontSize: 13,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                    title={`${keyToName(key)} · ♥ ${cnt}`}
-                  >
-                    <span
-                      title={keyToName(key)}
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: isMobile ? 160 : 180,
-                      }}
-                    >
-                      {keyToName(key)}
-                    </span>
-                    <span
-                      style={{
-                        marginLeft: 8,
-                        fontSize: 12,
-                        lineHeight: "14px",
-                        borderRadius: 999,
-                        padding: "2px 8px",
-                        border: "1px solid #ffd6e0",
-                        background: "#fff0f3",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        flexShrink: 0,
-                      }}
-                      aria-label={`좋아요 ${cnt}개`}
-                    >
-                      ♥ {formatCount(cnt)}
-                    </span>
-                  </li>
-                ))
-              ) : (
-                <li style={{ fontSize: 12, color: "#666" }}>
-                  데이터 없음
-                </li>
-              )}
-            </ol>
-          </div>
-
-          {/* 시/군/구 Top5 */}
-          <div>
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: 6,
-                fontSize: 14,
-              }}
-            >
-              시/군/구
-            </div>
-            <ol style={{ margin: 0, paddingLeft: 18 }}>
-              {topMun.length ? (
-                topMun.map(([key, cnt]) => (
-                  <li
-                    key={key}
-                    style={{
-                      marginBottom: 6,
-                      fontSize: 13,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                    title={`${keyToName(key)} · ♥ ${cnt}`}
-                  >
-                    <span
-                      title={keyToName(key)}
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: isMobile ? 160 : 180,
-                      }}
-                    >
-                      {keyToName(key)}
-                    </span>
-                    <span
-                      style={{
-                        marginLeft: 8,
-                        fontSize: 12,
-                        lineHeight: "14px",
-                        borderRadius: 999,
-                        padding: "2px 8px",
-                        border: "1px solid #ffd6e0",
-                        background: "#fff0f3",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        flexShrink: 0,
-                      }}
-                      aria-label={`좋아요 ${cnt}개`}
-                    >
-                      ♥ {formatCount(cnt)}
-                    </span>
-                  </li>
-                ))
-              ) : (
-                <li style={{ fontSize: 12, color: "#666" }}>
-                  데이터 없음
-                </li>
-              )}
-            </ol>
-          </div>
+              {rankCollapsed ? "열기 ▾" : "접기 ▴"}
+            </button>
+          )}
         </div>
+
+        {/* 모바일에서 접힌 상태면 내용 숨김, PC에서는 항상 표시 */}
+        {(!isMobile || !rankCollapsed) && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 12,
+            }}
+          >
+            {/* 시/도 Top5 */}
+            <div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  marginBottom: 6,
+                  fontSize: 14,
+                }}
+              >
+                시/도
+              </div>
+              <ol style={{ margin: 0, paddingLeft: 18 }}>
+                {topProv.length ? (
+                  topProv.map(([key, cnt]) => (
+                    <li
+                      key={key}
+                      style={{
+                        marginBottom: 6,
+                        fontSize: 13,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title={`${keyToName(key)} · ♥ ${cnt}`}
+                    >
+                      <span
+                        title={keyToName(key)}
+                        style={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: isMobile ? 160 : 180,
+                        }}
+                      >
+                        {keyToName(key)}
+                      </span>
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 12,
+                          lineHeight: "14px",
+                          borderRadius: 999,
+                          padding: "2px 8px",
+                          border: "1px solid #ffd6e0",
+                          background: "#fff0f3",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          flexShrink: 0,
+                        }}
+                        aria-label={`좋아요 ${cnt}개`}
+                      >
+                        ♥ {formatCount(cnt)}
+                      </span>
+                    </li>
+                  ))
+                ) : (
+                  <li style={{ fontSize: 12, color: "#666" }}>
+                    데이터 없음
+                  </li>
+                )}
+              </ol>
+            </div>
+
+            {/* 시/군/구 Top5 */}
+            <div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  marginBottom: 6,
+                  fontSize: 14,
+                }}
+              >
+                시/군/구
+              </div>
+              <ol style={{ margin: 0, paddingLeft: 18 }}>
+                {topMun.length ? (
+                  topMun.map(([key, cnt]) => (
+                    <li
+                      key={key}
+                      style={{
+                        marginBottom: 6,
+                        fontSize: 13,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title={`${keyToName(key)} · ♥ ${cnt}`}
+                    >
+                      <span
+                        title={keyToName(key)}
+                        style={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: isMobile ? 160 : 180,
+                        }}
+                      >
+                        {keyToName(key)}
+                      </span>
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 12,
+                          lineHeight: "14px",
+                          borderRadius: 999,
+                          padding: "2px 8px",
+                          border: "1px solid #ffd6e0",
+                          background: "#fff0f3",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          flexShrink: 0,
+                        }}
+                        aria-label={`좋아요 ${cnt}개`}
+                      >
+                        ♥ {formatCount(cnt)}
+                      </span>
+                    </li>
+                  ))
+                ) : (
+                  <li style={{ fontSize: 12, color: "#666" }}>
+                    데이터 없음
+                  </li>
+                )}
+              </ol>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 중앙 상단: 검색 */}

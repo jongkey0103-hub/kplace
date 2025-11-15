@@ -958,7 +958,12 @@ function App() {
       }
 
       alert(`${selectedName}에 이미지가 적용되었습니다 ✅`);
+
+      // ✅ 적용 후에는 미리보기/원본 이미지 상태 정리 (모바일에서 너무 크게 안 보이게)
       setPreviewOpen(false);
+      setUploadedImage(null);
+      setPreviewImg(null);
+      setPreviewGeom(null);
     } catch (err) {
       console.error(err);
       alert(
@@ -1045,19 +1050,19 @@ function App() {
         style={{ position: "absolute", inset: 0 }}
       />
 
-      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 (모바일에서 중앙 상단) */}
+      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 (모바일에서 더 작게, 왼쪽 고정) */}
       <div
         style={{
           position: "absolute",
-          top: isMobile ? 70 : 20,
-          left: isMobile ? "50%" : 20,
-          transform: isMobile ? "translateX(-50%)" : "none",
+          top: isMobile ? 80 : 20,
+          left: isMobile ? 10 : 20,
+          transform: "none",
           background: "rgba(255,255,255,0.92)",
           borderRadius: 10,
           boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
-          padding: isMobile ? "10px 12px" : "12px 14px",
-          width: isMobile ? "calc(100vw - 32px)" : 340,
-          maxWidth: 400,
+          padding: isMobile ? "8px 10px" : "12px 14px",
+          width: isMobile ? 260 : 340,
+          maxWidth: isMobile ? 260 : 400,
           zIndex: 15,
           backdropFilter: "blur(2px)",
         }}
@@ -1065,9 +1070,9 @@ function App() {
         <div
           style={{
             fontWeight: 700,
-            marginBottom: 8,
-            fontSize: 16,
-            textAlign: isMobile ? "center" : "left",
+            marginBottom: 6,
+            fontSize: 14,
+            textAlign: "left",
           }}
         >
           누적 좋아요 TOP 5
@@ -1508,6 +1513,7 @@ function App() {
               setUploadedImage(null);
               setPreviewOpen(false);
               setPreviewImg(null);
+              setPreviewGeom(null);
             }}
             style={{
               backgroundColor: "#007bff",

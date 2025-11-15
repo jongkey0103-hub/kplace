@@ -8,8 +8,7 @@ import municipalities from "./skorea-municipalities-geo.json";
 mapboxgl.accessToken =
   "pk.eyJ1Ijoiam9uZ2tleTk0IiwiYSI6ImNtZ3czM2o5NjBoaTgycXNpNWtmeTFtd3cifQ.nHtLFX7O-gtrMKnXzgcrmw";
 
-// ✅ 개인별 전역 쿨타임 (지금은 3분)
-// 30분으로 바꾸고 싶으면: const COOLDOWN_MS = 30 * 60 * 1000;
+// 개인별 전역 쿨타임 3분
 const COOLDOWN_MS = 3 * 60 * 1000;
 
 // 고유 ID
@@ -357,6 +356,19 @@ function App() {
   const regionCanvasesRef = useRef({});
   const syncLayersRef = useRef(() => {});
   const codeToNameRef = useRef({});
+
+  // ✅ 모바일 여부 체크 (width <= 768px)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      if (typeof window !== "undefined") {
+        setIsMobile(window.innerWidth <= 768);
+      }
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // 누적 좋아요
   const [likes, setLikes] = useState(() => {
@@ -1033,17 +1045,19 @@ function App() {
         style={{ position: "absolute", inset: 0 }}
       />
 
-      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 */}
+      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 (모바일에서 중앙 상단) */}
       <div
         style={{
           position: "absolute",
-          top: 20,
-          left: 20,
+          top: isMobile ? 70 : 20,
+          left: isMobile ? "50%" : 20,
+          transform: isMobile ? "translateX(-50%)" : "none",
           background: "rgba(255,255,255,0.92)",
           borderRadius: 10,
           boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
-          padding: "12px 14px",
-          width: 340,
+          padding: isMobile ? "10px 12px" : "12px 14px",
+          width: isMobile ? "calc(100vw - 32px)" : 340,
+          maxWidth: 400,
           zIndex: 15,
           backdropFilter: "blur(2px)",
         }}
@@ -1053,6 +1067,7 @@ function App() {
             fontWeight: 700,
             marginBottom: 8,
             fontSize: 16,
+            textAlign: isMobile ? "center" : "left",
           }}
         >
           누적 좋아요 TOP 5
@@ -1061,7 +1076,7 @@ function App() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
             gap: 12,
           }}
         >
@@ -1095,7 +1110,7 @@ function App() {
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        maxWidth: 180,
+                        maxWidth: isMobile ? 160 : 180,
                       }}
                     >
                       {keyToName(key)}
@@ -1158,7 +1173,7 @@ function App() {
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        maxWidth: 180,
+                        maxWidth: isMobile ? 160 : 180,
                       }}
                     >
                       {keyToName(key)}
@@ -1204,7 +1219,8 @@ function App() {
           borderRadius: 8,
           boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
           padding: "6px 10px",
-          zIndex: 10,
+          zIndex: 20, // TOP 패널보다 위로
+          maxWidth: "90vw",
         }}
       >
         <input
@@ -1216,7 +1232,8 @@ function App() {
           style={{
             border: "none",
             outline: "none",
-            width: 280,
+            width: isMobile ? "70vw" : 280,
+            maxWidth: 320,
             fontSize: 14,
           }}
         />
@@ -1233,10 +1250,11 @@ function App() {
             background: "#fff",
             borderRadius: 12,
             boxShadow: "0 12px 28px rgba(0,0,0,0.25)",
-            padding: "24px 28px",
-            width: 380,
+            padding: isMobile ? "18px 16px" : "24px 28px",
+            width: isMobile ? "90vw" : 380,
+            maxWidth: 420,
             textAlign: "center",
-            zIndex: 20,
+            zIndex: 30,
           }}
         >
           <p
@@ -1271,6 +1289,7 @@ function App() {
           <div
             style={{
               display: "flex",
+              flexDirection: isMobile ? "column" : "row",
               gap: 8,
               justifyContent: "center",
               marginBottom: 10,
@@ -1286,6 +1305,7 @@ function App() {
                 borderRadius: 8,
                 cursor: "pointer",
                 fontWeight: 700,
+                flex: 1,
               }}
             >
               ♥ 좋아요
@@ -1300,6 +1320,7 @@ function App() {
                 borderRadius: 8,
                 cursor: "pointer",
                 fontWeight: 600,
+                flex: 1,
               }}
             >
               이미지 업로드
@@ -1496,6 +1517,7 @@ function App() {
               borderRadius: 6,
               cursor: "pointer",
               marginTop: 12,
+              width: "100%",
             }}
           >
             닫기

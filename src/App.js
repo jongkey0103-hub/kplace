@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -8,7 +8,8 @@ import municipalities from "./skorea-municipalities-geo.json";
 mapboxgl.accessToken =
   "pk.eyJ1Ijoiam9uZ2tleTk0IiwiYSI6ImNtZ3czM2o5NjBoaTgycXNpNWtmeTFtd3cifQ.nHtLFX7O-gtrMKnXzgcrmw";
 
-// 개인별 전역 쿨타임 3분
+// ✅ 개인별 전역 쿨타임 (지금은 3분)
+// 30분으로 바꾸고 싶으면: const COOLDOWN_MS = 30 * 60 * 1000;
 const COOLDOWN_MS = 3 * 60 * 1000;
 
 // 고유 ID
@@ -38,7 +39,6 @@ const pickFirst = (obj, keys) => {
   }
   return null;
 };
-
 const pickAll = (obj, keys) => {
   const out = [];
   for (const k of keys) {
@@ -53,29 +53,25 @@ const pickAll = (obj, keys) => {
   }
   return out;
 };
-
 const splitTokens = (val) =>
   typeof val !== "string"
     ? []
     : val
         .replace(/[()]/g, " ")
-        .split(/[\|\/,]+/g)
+        // eslint 경고 제거: \| \/ 대신 그대로 사용
+        .split(/[|/,]+/g)
         .flatMap((t) => t.split(/\s{2,}/g))
         .map((t) => t.trim())
         .filter(Boolean)
         .map((t) => (t.length > 80 ? t.slice(0, 80) : t));
-
 const hangulCount = (s) =>
   typeof s === "string" && s.match(HANGUL_RE) ? s.match(HANGUL_RE).length : 0;
-
 const scoreName = (s, level) => {
   if (!s) return -1;
   if (BAD_LANGUAGE_TAG_RE.test(s)) return -999;
   if (/^[A-Za-z]{1,3}$/.test(s)) return -999;
-
   let score = 0;
   score += hangulCount(s) * 10;
-
   if (level === "mun") {
     if (MUN_SUFFIX_KO.test(s)) score += 30;
     if (PROV_SUFFIX_KO.test(s)) score -= 40;
@@ -83,11 +79,10 @@ const scoreName = (s, level) => {
     if (PROV_SUFFIX_KO.test(s)) score += 20;
     if (MUN_SUFFIX_KO.test(s)) score -= 10;
   }
-
   if (ROMA_SUFFIX_RE.test(s)) score += 6;
   if (s.length < 2) score -= 10;
-  if (/^[\-\s0-9]+$/.test(s)) score -= 10;
-
+  // eslint 경고 제거: 대괄호 안 마지막에 - 배치
+  if (/^[\s0-9-]+$/.test(s)) score -= 10;
   return score;
 };
 
@@ -108,7 +103,6 @@ const STRICT_MUN_NAME_KEYS = [
   "NAME_MUN",
   "MUN_NAME",
 ];
-
 const PROV_NAME_KEYS = [
   "CTP_KOR_NM",
   "CTP_ENG_NM",
@@ -136,7 +130,6 @@ const PROV_NAME_KEYS = [
   "full_nm",
   "adm_nm",
 ];
-
 const MUN_NAME_KEYS = [
   ...STRICT_MUN_NAME_KEYS,
   "ADM_NM",
@@ -157,7 +150,6 @@ const MUN_NAME_KEYS = [
   "full_nm",
   "adm_nm",
 ];
-
 const PROV_CODE_KEYS = [
   "CTPRVN_CD",
   "sido_cd",
@@ -168,7 +160,6 @@ const PROV_CODE_KEYS = [
   "ID",
   "id",
 ];
-
 const MUN_CODE_KEYS = [
   "SIG_CD",
   "sig_cd",
@@ -182,15 +173,12 @@ const MUN_CODE_KEYS = [
 
 const resolveNameFromProps = (props, level) => {
   if (!props) return null;
-
   if (level === "mun") {
     const strict = pickFirst(props, STRICT_MUN_NAME_KEYS);
     if (strict) return strict;
-
     const direct = pickAll(props, MUN_NAME_KEYS);
     let tokens = [];
     for (const v of direct) tokens.push(v, ...splitTokens(v));
-
     const provVals = pickAll(props, PROV_NAME_KEYS);
     const provSet = new Set(
       provVals
@@ -198,94 +186,61 @@ const resolveNameFromProps = (props, level) => {
         .map((t) => t.trim())
         .filter(Boolean)
     );
-
     tokens = tokens.filter((t) => t && !provSet.has(t));
-
     if (!tokens.length) {
       for (const k of Object.keys(props)) {
         const v = props[k];
-        if (typeof v === "string" && v.trim()) {
+        if (typeof v === "string" && v.trim())
           tokens.push(v.trim(), ...splitTokens(v));
-        }
       }
       tokens = tokens.filter((t) => t && !provSet.has(t));
     }
-
     if (!tokens.length) return null;
-
     tokens = tokens
       .filter((t) => !BAD_LANGUAGE_TAG_RE.test(t))
       .filter((t) => !/^[A-Za-z]{1,3}$/.test(t));
-
     tokens.sort((a, b) => scoreName(b, "mun") - scoreName(a, "mun"));
     return tokens[0].replace(/\s*-\s*/g, "-").trim();
   }
-
   const strictProv = pickFirst(props, PROV_NAME_KEYS);
   if (strictProv) return strictProv;
-
   let tokens = [];
   for (const k of Object.keys(props)) {
     const v = props[k];
-    if (typeof v === "string" && v.trim()) {
+    if (typeof v === "string" && v.trim())
       tokens.push(v.trim(), ...splitTokens(v));
-    }
   }
-
   tokens = tokens
     .filter(Boolean)
     .filter((t) => !BAD_LANGUAGE_TAG_RE.test(t))
     .filter((t) => !/^[A-Za-z]{1,3}$/.test(t));
-
   if (!tokens.length) return null;
-
   tokens.sort((a, b) => scoreName(b, "prov") - scoreName(a, "prov"));
   return tokens[0].replace(/\s*-\s*/g, "-").trim();
 };
-
 const resolveCodeFromProps = (props, level, i) => {
   const keys = level === "prov" ? PROV_CODE_KEYS : MUN_CODE_KEYS;
   const raw = pickFirst(props, keys);
   return raw != null ? String(raw) : `idx_${i}`;
 };
 
-// GeoJSON 전처리 + 서울 이름만 교정
+// ✅ feature-state용 id 강제 부여
 const preprocessGeojson = (geojson, level) => {
   if (!geojson || !geojson.features) return geojson;
-
   const features = geojson.features.map((f, i) => {
     const props = { ...(f.properties || {}) };
-    let name = resolveNameFromProps(props, level) || `이름미상_${i + 1}`;
+    const name = resolveNameFromProps(props, level) || `이름미상_${i + 1}`;
     const code = resolveCodeFromProps(props, level, i);
-
-    // 서울 이름 강제 교정 (Keijo|Séoul|Seul|Seúl|Söul|Soul-t'ukpyolsi → Seoul)
-    if (level === "prov" && typeof name === "string") {
-      const lower = name.toLowerCase();
-      if (
-        lower.includes("keijo") ||
-        lower.includes("séoul") ||
-        lower.includes("seúl") ||
-        lower.includes("söul") ||
-        lower.includes("seul") ||
-        lower.includes("seoul-t'ukpyolsi") ||
-        lower.includes("soul-t'ukpyolsi") ||
-        (name.includes("|") && lower.includes("seoul"))
-      ) {
-        name = "Seoul";
-      }
-    }
-
     return {
       ...f,
       id: f.id ?? i,
       properties: { ...props, __NAME: name, __CODE: code },
     };
   });
-
   return { ...geojson, features };
 };
 
-// ===== 일반 유틸 =====
+// ===== 유틸 =====
 const getOrCreateUserId = () => {
   let id = localStorage.getItem("kplace_user_id_v1");
   if (!id) {
@@ -294,27 +249,22 @@ const getOrCreateUserId = () => {
   }
   return id;
 };
-
 const formatCount = (n) => {
   if (n == null) return "0";
   const abs = Math.abs(n);
   if (abs < 1000) return String(n);
-
   const units = [
     { v: 1e9, s: "B" },
     { v: 1e6, s: "M" },
     { v: 1e3, s: "k" },
   ];
-
-  for (const u of units) {
-    if (abs >= u.v) {
+  for (const u of units)
+    if (abs >= u.v)
       return (n / u.v).toFixed(1).replace(/\.0$/, "") + u.s;
-    }
-  }
   return String(n);
 };
 
-// 고해상도 캔버스 렌더 (지도에 올릴 최종 이미지)
+// ✅ 고해상도 캔버스에 렌더링하는 헬퍼 (프리뷰 파라미터 그대로 사용)
 const renderHighResCanvas = (
   canvas,
   previewCanvas,
@@ -328,11 +278,13 @@ const renderHighResCanvas = (
   const bboxW = Math.max(1e-12, maxX - minX);
   const bboxH = Math.max(1e-12, maxY - minY);
 
+  // 프리뷰 캔버스 기준
   const baseW = previewCanvas.__cssW || 360;
   const baseH =
     previewCanvas.__cssH ||
     Math.max(1, Math.round((bboxH / bboxW) * baseW));
 
+  // 고해상도 캔버스 크기 (3배)
   const widthCss = baseW * 3;
   const heightCss = baseH * 3;
 
@@ -350,7 +302,7 @@ const renderHighResCanvas = (
 
   ctx.save();
 
-  // 영역 클리핑
+  // 클리핑 경계
   ctx.beginPath();
   mercRings.forEach((ring) => {
     const [sx, sy] = toCanvas(ring[0]);
@@ -365,6 +317,7 @@ const renderHighResCanvas = (
 
   const { scale, rotateDeg, offsetX, offsetY } = previewParams;
 
+  // 프리뷰 ↔ 고해상도 해상도 비율
   const factorX = widthCss / baseW;
   const factorY = heightCss / baseH;
 
@@ -401,10 +354,11 @@ function App() {
   const selectedIdRef = useRef(null);
   const selectedGeomRef = useRef(null);
   const markerRef = useRef(null);
+  const regionCanvasesRef = useRef({});
   const syncLayersRef = useRef(() => {});
-  const [nameCache, setNameCache] = useState({});
+  const codeToNameRef = useRef({});
 
-  // 좋아요 저장
+  // 누적 좋아요
   const [likes, setLikes] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("kplace_likes_v10") || "{}");
@@ -412,7 +366,6 @@ function App() {
       return {};
     }
   });
-
   useEffect(() => {
     localStorage.setItem("kplace_likes_v10", JSON.stringify(likes));
   }, [likes]);
@@ -425,7 +378,6 @@ function App() {
     );
     return all[userId] || 0;
   });
-
   useEffect(() => {
     const all = JSON.parse(
       localStorage.getItem("kplace_user_lastlike_v1") || "{}"
@@ -441,17 +393,18 @@ function App() {
 
   const canLikeNowGlobal = () =>
     Date.now() - (userLastLikeTs || 0) >= COOLDOWN_MS;
-
   const remainSecondsGlobal = () =>
     Math.ceil(
       Math.max(0, COOLDOWN_MS - (Date.now() - (userLastLikeTs || 0))) /
         1000
     );
 
+  // 이름 캐시
+  const [nameCache, setNameCache] = useState({});
   const keyToName = (key) => nameCache[key] || key;
 
-  // TOP5
-  const topProv = useMemo(
+  // Top5
+  const topProv = React.useMemo(
     () =>
       Object.entries(likes)
         .filter(([k]) => k.startsWith("prov:"))
@@ -459,8 +412,7 @@ function App() {
         .slice(0, 5),
     [likes]
   );
-
-  const topMun = useMemo(
+  const topMun = React.useMemo(
     () =>
       Object.entries(likes)
         .filter(([k]) => k.startsWith("mun:"))
@@ -469,13 +421,13 @@ function App() {
     [likes]
   );
 
-  // 지도 초기화
   useEffect(() => {
     if (mapRef.current) return;
 
     const provincesData = preprocessGeojson(provinces, "prov");
     const municipalitiesData = preprocessGeojson(municipalities, "mun");
 
+    // 초기 이름 맵
     const initMap = {};
     provincesData.features.forEach(
       (f) => (initMap["prov:" + f.properties.__CODE] = f.properties.__NAME)
@@ -483,6 +435,7 @@ function App() {
     municipalitiesData.features.forEach(
       (f) => (initMap["mun:" + f.properties.__CODE] = f.properties.__NAME)
     );
+    codeToNameRef.current = initMap;
     setNameCache(initMap);
 
     const map = new mapboxgl.Map({
@@ -565,7 +518,7 @@ function App() {
         paint: { "line-color": "#550000", "line-width": 1.8 },
       });
 
-      // 줌별 레이어 토글
+      // 레이어 토글
       const syncLayers = () => {
         const z = map.getZoom();
         const showProvince = z < 8;
@@ -595,7 +548,9 @@ function App() {
               "visibility",
               showProvince ? "none" : "visible"
             );
-        } catch (_) {}
+        } catch (error) {
+          console.warn("레이어 visibility 변경 중 오류:", error);
+        }
 
         const layerIds = (map.getStyle()?.layers || []).map((l) => l.id);
         for (const id of layerIds) {
@@ -614,7 +569,9 @@ function App() {
               "visibility",
               shouldShow ? "visible" : "none"
             );
-          } catch (_) {}
+          } catch (error) {
+            console.warn("이미지 레이어 visibility 변경 중 오류:", error);
+          }
         }
       };
 
@@ -624,7 +581,7 @@ function App() {
 
       // 클릭 선택
       map.on("click", (e) => {
-        // 주소 검색 마커는 지도 클릭 시 제거
+        // ✅ 주소 검색 마커는 지도 아무 곳이나 클릭하면 제거
         if (markerRef.current) {
           markerRef.current.remove();
           markerRef.current = null;
@@ -634,7 +591,6 @@ function App() {
         const layerId = useProvince
           ? "provinces-fill"
           : "municipalities-fill";
-
         const features = map.queryRenderedFeatures(e.point, {
           layers: [layerId],
         });
@@ -701,7 +657,9 @@ function App() {
 
         setNameCache((prev) => {
           if (prev[key] === name) return prev;
-          return { ...prev, [key]: name };
+          const next = { ...prev, [key]: name };
+          codeToNameRef.current[key] = name;
+          return next;
         });
       });
     });
@@ -726,7 +684,7 @@ function App() {
   });
   const [previewGeom, setPreviewGeom] = useState(null); // { minX, minY, maxX, maxY, mercRings }
 
-  // 미리보기 캔버스 렌더
+  // ===== 미리보기 렌더 =====
   const drawPreview = () => {
     if (!previewOpen || !previewImg || !previewGeom) return;
     const canvas = previewCanvasRef.current;
@@ -752,7 +710,7 @@ function App() {
     ctx.clearRect(0, 0, PRE_W, PRE_H);
     ctx.save();
 
-    // 클리핑
+    // 클립
     ctx.beginPath();
     mercRings.forEach((ring) => {
       const [sx, sy] = toCanvas(ring[0]);
@@ -770,17 +728,17 @@ function App() {
     ctx.rotate((rotateDeg * Math.PI) / 180);
     ctx.imageSmoothingEnabled = true;
 
-    const iw = previewImg.width;
-    const ih = previewImg.height;
+    const iw = previewImg.width,
+      ih = previewImg.height;
     const coverS_pre = Math.max(PRE_W / iw, PRE_H / ih);
     const effScalePre = Math.max(0.001, scale) * coverS_pre;
-
     ctx.scale(effScalePre, effScalePre);
+
     ctx.drawImage(previewImg, -iw / 2, -ih / 2, iw, ih);
 
     ctx.restore();
 
-    // 경계선 가이드
+    // 테두리 가이드
     ctx.save();
     ctx.strokeStyle = "rgba(0,0,0,0.15)";
     ctx.lineWidth = 1;
@@ -803,7 +761,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewOpen, previewImg, previewGeom, previewParams]);
 
-  // 업로드 → 미리보기 진입
+  // ===== 업로드 → 미리보기 진입 =====
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file || !selectedGeomRef.current) return;
@@ -827,7 +785,6 @@ function App() {
       minY = Infinity,
       maxX = -Infinity,
       maxY = -Infinity;
-
     const mercRings = ringsLngLat.map((ring) => {
       const mring = ring.map(([lng, lat]) => {
         const [mx, my] = lngLatToMercXY(lng, lat);
@@ -854,8 +811,8 @@ function App() {
         setPreviewImg(img);
 
         const PRE_W = 360;
-        const bboxW = Math.max(1e-12, minX === maxX ? 1 : maxX - minX);
-        const bboxH = Math.max(1e-12, minY === maxY ? 1 : maxY - minY);
+        const bboxW = Math.max(1e-12, maxX - minX);
+        const bboxH = Math.max(1e-12, maxY - minY);
         const PRE_H = Math.max(
           1,
           Math.round((bboxH / bboxW) * PRE_W)
@@ -894,7 +851,7 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  // 미리보기 적용 → 지도
+  // ===== 미리보기 적용 → 지도 (고해상도 렌더링 사용) =====
   const applyPreviewToMap = () => {
     try {
       if (
@@ -906,7 +863,6 @@ function App() {
         alert("이미지/영역 정보가 없습니다.");
         return;
       }
-
       const map = mapRef.current;
       if (!map) return;
 
@@ -942,7 +898,6 @@ function App() {
           Math.PI;
         return [lng, lat];
       };
-
       const topLeft = mercToLngLat(minX, minY);
       const topRight = mercToLngLat(maxX, minY);
       const bottomRight = mercToLngLat(maxX, maxY);
@@ -977,9 +932,18 @@ function App() {
         paint: { "raster-opacity": 1.0 },
       });
 
+      regionCanvasesRef.current[selectedName] = {
+        sourceId,
+        layerId,
+        canvas: hiCanvas,
+        isProvinceLevel: selectedLevel === "prov",
+      };
+
       try {
         syncLayersRef.current();
-      } catch (_) {}
+      } catch (error) {
+        console.warn("syncLayers 호출 중 오류:", error);
+      }
 
       alert(`${selectedName}에 이미지가 적용되었습니다 ✅`);
       setPreviewOpen(false);
@@ -991,7 +955,7 @@ function App() {
     }
   };
 
-  // 주소 검색
+  // ===== 검색 =====
   const handleSearch = async (e) => {
     if (e.key !== "Enter") return;
     const q = searchInput.trim();
@@ -1011,7 +975,9 @@ function App() {
         map.flyTo({ center: [lng, lat], zoom: 9 });
 
         if (markerRef.current) markerRef.current.remove();
-        markerRef.current = new mapboxgl.Marker({ color: "#ff0000" })
+        markerRef.current = new mapboxgl.Marker({
+          color: "#ff0000",
+        })
           .setLngLat([lng, lat])
           .addTo(map);
       } else {
@@ -1023,7 +989,7 @@ function App() {
     }
   };
 
-  // 좋아요 클릭
+  // ===== 좋아요 =====
   const handleLike = () => {
     if (!selectedKey || !selectedName) {
       alert("먼저 지도의 구역을 클릭해주세요.");
@@ -1045,13 +1011,14 @@ function App() {
 
   const selectedCount = likes[selectedKey] || 0;
 
-  const cooldownText = useMemo(() => {
+  // useMemo 대신 즉시 실행 함수로 변경 (eslint 경고 제거)
+  const cooldownText = (() => {
     const remain = remainSecondsGlobal();
     if (remain <= 0) return "지금 좋아요 가능!";
     const mm = Math.floor(remain / 60);
     const ss = String(remain % 60).padStart(2, "0");
     return `개인 쿨타임 ${mm}:${ss}`;
-  }, [userLastLikeTs]);
+  })();
 
   return (
     <div
@@ -1066,7 +1033,7 @@ function App() {
         style={{ position: "absolute", inset: 0 }}
       />
 
-      {/* 좌측 상단: 누적 좋아요 TOP 5 */}
+      {/* 좌측 상단: 누적 좋아요 TOP 5 패널 */}
       <div
         style={{
           position: "absolute",
@@ -1536,22 +1503,21 @@ function App() {
         </div>
       )}
 
-      {/* 저작권 표시 */}
+      {/* 오른쪽 아래: 저작권 표기 */}
       <div
         style={{
           position: "absolute",
-          right: 8,
+          right: 10,
           bottom: 6,
           fontSize: 10,
-          color: "rgba(0,0,0,0.55)",
-          background: "rgba(255,255,255,0.7)",
-          padding: "2px 6px",
+          color: "rgba(0,0,0,0.5)",
+          background: "rgba(255,255,255,0.6)",
+          padding: "3px 6px",
           borderRadius: 4,
-          zIndex: 5,
           pointerEvents: "none",
         }}
       >
-        지도 경계 데이터 © 통계청 통계지리정보서비스(SGIS) 제공
+        행정구역 경계 데이터 ⓒ 통계청 통계지리정보서비스(SGIS)
       </div>
     </div>
   );
